@@ -1,20 +1,112 @@
-import React from 'react';
-import { View, Image, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Image, Text, Linking, AsyncStorage } from 'react-native';
+import { RectButton } from 'react-native-gesture-handler';
+
+import api from '../../services/api';
 
 import styles from './styles';
 
-function TeacherItem() {
+import heartOutlineIcon from '../../assets/images/icons/heart-outline.png';
+import unfavoriteIcon from '../../assets/images/icons/unfavorite.png';
+import whatsappIcon from '../../assets/images/icons/whatsapp.png';
+
+export interface Teacher {
+    id: number;
+    name: string;
+    avatar: string;
+    whatsapp: string;
+    bio: string;
+    subject: string;
+    cost: number;
+}
+
+interface TeacherItemProps {
+    teacher: Teacher;
+    favorited: boolean;
+}
+
+const TeacherItem: React.FunctionComponent<TeacherItemProps> = ( { teacher, favorited } ) => {
+    
+    const [ isFavorited, setFavorited ] = useState(favorited);
+
+    function handleLinkToWhatsApp() {
+        api.post('connections', {
+            user_id: teacher.id
+        });
+
+        Linking.openURL(`whatsapp://send?phone=${teacher.whatsapp}`);
+    }
+
+    async function handleToggleFavorite() {
+        
+        const favorites = await AsyncStorage.getItem('favorites');
+
+        let favoritesArray = [];
+
+        if (favorites) {
+            favoritesArray = JSON.parse(favorites);
+        }
+
+        if (isFavorited) {
+            const favoriteIndex = favoritesArray.findIndex((favTeacher: Teacher) => {
+                return favTeacher.id === teacher.id;
+            });
+            favoritesArray.splice(favoriteIndex, 1);
+        } else {    
+            favoritesArray.push(teacher);
+        }
+        
+        setFavorited(!isFavorited);
+
+        await AsyncStorage.setItem('favorites', JSON.stringify(favoritesArray));
+    }
+
     return (
         <View style={styles.container}>
-            <View style={styles.profile}>
+            <View style={styles.profile}>                
                 <Image
                     style={styles.avatar}
-                    source={{uri: 'https://scontent-gig2-1.xx.fbcdn.net/v/t1.0-9/87377770_2965699160153718_8116682672618602496_o.jpg?_nc_cat=103&_nc_sid=09cbfe&_nc_ohc=wF9Ot0HFpQcAX9PnUPy&_nc_ht=scontent-gig2-1.xx&oh=8ea59a44fe9620347e4005d088e19799&oe=5F4F5670'}}
+                    source={{uri: teacher.avatar}}
                 />
                 <View style={styles.profileInfo}>
-                    <Text style={styles.name}>João Paulo Ferreira</Text>
+                    <Text style={styles.name}>{teacher.name}</Text>
+                    <Text style={styles.subject}>{teacher.subject}</Text>
                 </View>
             </View>
+
+            <Text style={styles.bio}>{teacher.bio}</Text>
+
+            <View style={styles.footer}>
+                <Text style={styles.price}>
+                    Preço/hora {'   '}
+                    <Text style={styles.priceValue}>R$ {teacher.cost}</Text>
+                </Text>
+
+                <View style={styles.buttonsContainer}>
+                    <RectButton 
+                        onPress={handleToggleFavorite}
+                        style={[
+                            styles.favoriteButton, 
+                            isFavorited ? styles.favorited : {}
+                        ]}
+                    >
+                        {isFavorited
+                            ? <Image source={unfavoriteIcon} />
+                            : <Image source={heartOutlineIcon} />
+                        }
+                    </RectButton>
+                    
+                    <RectButton 
+                        style={styles.contactButton}
+                        onPress={handleLinkToWhatsApp}
+                    >
+                        <Image source={whatsappIcon} />
+                        <Text style={styles.contactButtonText}>Entrar em contato</Text>
+                    </RectButton>
+
+                </View>
+            </View>
+
         </View>
     );
 }
